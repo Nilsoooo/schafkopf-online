@@ -64,7 +64,6 @@ aside{display:flex;flex-direction:column;gap:12px}
 .panel{background:rgba(0,0,0,.25);border-radius:14px;padding:12px 14px}
 .panel h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--gold)}
 .acc{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-variant-numeric:tabular-nums}
-.posv{color:#8ee39a}.negv{color:#ff9b9b}
 .log{max-height:240px;overflow:auto;font-size:13px;line-height:1.45}.log div{border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}
 .lasttrick{display:flex;gap:4px;justify-content:center;min-height:56px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
@@ -72,7 +71,6 @@ aside{display:flex;flex-direction:column;gap:12px}
 .modal h2{margin:0 0 4px;font-family:Georgia,serif}
 .modal table{width:100%;border-collapse:collapse;margin:10px 0;font-variant-numeric:tabular-nums}
 .modal td{padding:4px 2px;border-bottom:1px solid #e6dcc3}.modal td:last-child{text-align:right;font-weight:700}
-.modal .posv{color:#1e7d2e}.modal .negv{color:#b3261e}
 .conn{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#b3261e;color:#fff;padding:6px 14px;border-radius:99px;font-size:13px;z-index:60}
 .hidden{display:none!important}
 </style>
@@ -96,7 +94,6 @@ const RANK_NAME={A:'Sau','10':'Zehn',K:'König',O:'Ober',U:'Unter','9':'Neun','8
 const LEVEL={sau:1,wenz:2,solo:3};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
-const euro=ct=>(ct>0?'+':ct<0?'−':'')+(Math.abs(ct)/100).toFixed(2).replace('.',',')+' €';
 
 let ws=null,st=null,code=null,err='',closedByUs=false,retry=0;
 let lastAction='',pwDraft=store.get('sk.createpw')||'';
@@ -203,7 +200,7 @@ function renderTable(){
       <div class="seat pos-top" data-pos="top"></div><div class="seat pos-left" data-pos="left"></div>
       <div class="center" id="center"></div>
       <div class="seat pos-right" data-pos="right"></div><div class="seat pos-bottom" data-pos="bottom"></div></section>
-      <aside><div class="panel"><h3>Konten</h3><div class="acc" id="accounts"></div></div>
+      <aside><div class="panel"><h3>Spielstand</h3><div class="acc" id="score"></div></div>
       <div class="panel"><h3>Letzter Stich</h3><div class="lasttrick mini" id="lastTrick"></div></div>
       <div class="panel"><h3>Verlauf</h3><div class="log" id="log"></div></div></aside></main>`;
   }
@@ -236,9 +233,11 @@ function renderTable(){
   if(!st.trick||st.trick.length===0)html+=`<div class="center-info">${g?esc(g.name)+'<br>von '+esc(st.seats[g.decl]?.name):esc(st.status||'')}${st.you<0?'<br><b>Du schaust zu.</b>':''}</div>`;
   for(const t of st.trick||[])html+=`<div class="slot ${posOf(t.p)}">${cardHTML(t.card)}</div>`;
   c.innerHTML=html;
-  document.getElementById('accounts').innerHTML=st.seats.map((s,i)=>`<div>${esc(s?s.name:'—')}</div><div class="${st.bal[i]>0?'posv':st.bal[i]<0?'negv':''}">${euro(st.bal[i])}</div>`).join('')
-    +(st.host?`<div></div><div><button class="tiny ghost" id="resetBal">zurücksetzen</button></div>`:'');
-  const rb=document.getElementById('resetBal');if(rb)rb.onclick=()=>{if(confirm('Konten auf 0 setzen?'))send({t:'resetBal'});};
+  const wins=st.wins||[0,0,0,0];
+  document.getElementById('score').innerHTML=st.seats.map((s,i)=>`<div>${esc(s?s.name:'—')}</div><div title="gewonnene Spiele">${wins[i]}</div>`).join('')
+    +`<div class="small" style="grid-column:1/3;margin-top:4px">Runden gespielt: ${st.games||0}</div>`
+    +(st.host?`<div></div><div><button class="tiny ghost" id="resetScore">zurücksetzen</button></div>`:'');
+  const rb=document.getElementById('resetScore');if(rb)rb.onclick=()=>{if(confirm('Spielstand auf 0 setzen?'))send({t:'resetScore'});};
   document.getElementById('lastTrick').innerHTML=st.lastTrick?st.lastTrick.map(t=>`<div style="text-align:center">${cardHTML(t.card)}<div class="small">${esc(st.seats[t.p]?.name)}</div></div>`).join(''):'<span class="small">–</span>';
   const lg=document.getElementById('log');lg.innerHTML=(st.log||[]).slice().reverse().map(l=>`<div>${esc(l)}</div>`).join('');
   // Events
@@ -268,19 +267,19 @@ function renderResult(){
   const m=document.getElementById('modal');
   if(st.phase!=='end'||!st.result){m.classList.add('hidden');return;}
   const r=st.result,g=st.game,nm=i=>esc(st.seats[i]?.name);
-  const rows=[`<tr><td>Grundtarif</td><td>${r.base} ct</td></tr>`];
-  if(r.schneider)rows.push('<tr><td>Schneider</td><td>+10 ct</td></tr>');
-  if(r.schwarz)rows.push('<tr><td>Schwarz</td><td>+10 ct</td></tr>');
-  if(r.lauf)rows.push(`<tr><td>${r.lauf} Laufende ${r.laufMit?'(mit)':'(ohne)'}</td><td>+${r.lauf*10} ct</td></tr>`);
-  rows.push(`<tr><td><b>Pro Spieler</b></td><td>${r.value} ct</td></tr>`);
-  const pay=st.seats.map((s,i)=>`<tr><td>${nm(i)}${r.team.includes(i)?' ★':''}</td><td class="${r.delta[i]>0?'posv':'negv'}">${euro(r.delta[i])}</td></tr>`).join('');
+  const others=[0,1,2,3].filter(i=>!r.team.includes(i));
   const meReady=st.ready&&st.ready.includes(st.you);
   const waitingFor=st.seats.map((s,i)=>(s&&!s.bot&&s.online&&!(st.ready||[]).includes(i))?s.name:null).filter(Boolean);
-  const title=st.you<0?'Spiel vorbei':(r.delta[st.you]>0?'Gewonnen!':'Verloren');
+  const title=st.you<0?'Spiel vorbei':(r.winners.includes(st.you)?'Gewonnen!':'Verloren');
+  const extra=r.schwarz?'Schwarz':r.schneider?'Schneider':'';
   document.getElementById('modalBox').innerHTML=`<h2>${title}</h2>
-    <div>${esc(g.name)} von ${nm(g.decl)}${g.type==='sau'&&g.partner!=null?' mit '+nm(g.partner):''}</div>
-    <p style="margin:10px 0 4px"><b>${r.team.map(nm).join(' & ')}</b> ${r.won?'gewinnt':'verliert'} mit <b>${r.tp}</b> zu ${120-r.tp} Augen${r.schwarz?' – schwarz':r.schneider?' – Schneider':''}.</p>
-    <table>${rows.join('')}</table><table>${pay}</table>
+    <div>${esc(g.name)} · Spieler: <b>${nm(g.decl)}</b>${g.type==='sau'&&g.partner!=null?' · Mitspieler: <b>'+nm(g.partner)+'</b>':''}</div>
+    <table>
+      <tr><td>${r.team.map(nm).join(' & ')} <span class="small" style="color:#6b6255">(Spieler)</span></td><td>${r.tp} Augen</td></tr>
+      <tr><td>${others.map(nm).join(' & ')} <span class="small" style="color:#6b6255">(Gegner)</span></td><td>${120-r.tp} Augen</td></tr>
+      ${extra?`<tr><td colspan="2" style="text-align:left">${extra}</td></tr>`:''}
+    </table>
+    <p style="margin:6px 0 12px">Gewonnen ${r.winners.length>1?'haben':'hat'}: <b>${r.winners.map(nm).join(', ')}</b></p>
     <div class="row" style="justify-content:space-between"><span class="small" style="color:#6b6255">${waitingFor.length?'Warte auf: '+waitingFor.map(esc).join(', '):''}</span>
     ${st.you>=0?`<button class="primary" id="nextBtn" ${meReady?'disabled':''}>${meReady?'Bereit ✓':'Nächstes Spiel'}</button>`:''}</div>`;
   m.classList.remove('hidden');

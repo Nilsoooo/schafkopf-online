@@ -8,7 +8,6 @@ const RANKS = ['A', '10', 'K', 'O', 'U', '9', '8', '7'];
 const PTS = { A: 11, '10': 10, K: 4, O: 3, U: 2, '9': 0, '8': 0, '7': 0 };
 const PLAIN = { A: 8, '10': 7, K: 6, O: 5, U: 4, '9': 3, '8': 2, '7': 1 };
 const LEVEL = { sau: 1, wenz: 2, solo: 3 };
-const TARIF = { sau: 10, wenz: 50, solo: 50, extra: 10 };
 
 function makeDeck() { const d = []; let id = 0; for (const s of SUITS) for (const r of RANKS) d.push({ s, r, id: id++ }); return d; }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -19,7 +18,6 @@ function eff(c, g) { return isTrump(c, g) ? 'T' : c.s; }
 function power(c, g, lead) { if (isTrump(c, g)) return 100 + trumpRank(c); if (c.s === lead) return PLAIN[c.r]; return 0; }
 function winnerIdx(trick, g) { const lead = eff(trick[0].card, g); let bi = 0, bp = -1; trick.forEach((t, i) => { const p = power(t.card, g, lead); if (p > bp) { bp = p; bi = i; } }); return bi; }
 function pts(cards) { return cards.reduce((a, c) => a + PTS[c.r], 0); }
-function allTrumps(g) { return makeDeck().filter(c => isTrump(c, g)).sort((a, b) => trumpRank(b) - trumpRank(a)); }
 function gameName(g) { if (g.type === 'sau') return `Sauspiel auf die ${SUIT_NAME[g.suit]}-Sau`; if (g.type === 'wenz') return 'Wenz'; return `${SUIT_NAME[g.suit]}-Solo`; }
 
 function canCallSau(hand, suit) {
@@ -163,7 +161,7 @@ function botPlay(G, p) {
   return lowCard(G, L);
 }
 
-/* ---------- Abrechnung ---------- */
+/* ---------- Auswertung ---------- */
 function score(G) {
   const g = G.game;
   const team = g.type === 'sau' ? [g.decl, g.partner] : [g.decl];
@@ -173,17 +171,8 @@ function score(G) {
   const won = tp >= 61;
   const schneider = won ? tp >= 91 : tp <= 30;
   const schwarz = won ? tt === 8 : tt === 0;
-  const order = allTrumps(g);
-  const holder = c => G.initial.findIndex(h => h.some(x => x.id === c.id));
-  const first = team.includes(holder(order[0])); let n = 0;
-  for (const c of order) { if (team.includes(holder(c)) === first) n++; else break; }
-  const lauf = n >= (g.type === 'wenz' ? 2 : 3) ? n : 0;
-  const base = TARIF[g.type];
-  const value = base + (schneider ? TARIF.extra : 0) + (schwarz ? TARIF.extra : 0) + lauf * TARIF.extra;
-  const delta = [0, 0, 0, 0];
-  if (g.type === 'sau') { for (const p of team) delta[p] = won ? value : -value; for (const p of others) delta[p] = won ? -value : value; }
-  else { delta[g.decl] = won ? 3 * value : -3 * value; for (const p of others) delta[p] = won ? -value : value; }
-  return { team, tp, won, schneider, schwarz, lauf, laufMit: first, base, value, delta };
+  const winners = won ? team.slice() : others;
+  return { team, tp, won, schneider, schwarz, winners };
 }
 
 module.exports = {

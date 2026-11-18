@@ -6,11 +6,11 @@ Reines Node.js (≥ 18), **keine npm-Abhängigkeiten**. Der Server rechnet alle 
 ## Features
 - Sessions erstellen nur mit Passwort (siehe unten), Beitreten per Link/Code ohne Passwort
 - Sessions mit 4-stelligem Code bzw. Link `https://schafkopf.nilsoo.xyz/?r=K7QM`
-- Gastgeber: Bots hinzufügen/Spieler entfernen, Spiel starten, Konten zurücksetzen, „Bot übernimmt“ für Spieler, die offline gegangen sind
+- Gastgeber: Bots hinzufügen/Spieler entfernen, Spiel starten, Spielstand zurücksetzen, „Bot übernimmt“ für Spieler, die offline gegangen sind
 - Reconnect: Seite neu laden oder WLAN weg → man landet automatisch wieder auf seinem Platz (Token im localStorage)
 - Zuschauer: wer einer laufenden Session beitritt, schaut zu und kann einen Bot-Platz übernehmen
-- Sauspiel, Wenz, Farbsolo · Rufsau-Regeln (zugeben, nicht schmieren, davonlaufen) · Schneider/Schwarz/Laufende
-- Tarif 10/50 ct, +10 für Schneider, Schwarz und jeden Laufenden
+- Sauspiel, Wenz, Farbsolo · Rufsau-Regeln (zugeben, nicht schmieren, davonlaufen) · Schneider/Schwarz
+- Spielstand: gewonnene Spiele je Spieler und gespielte Runden (kein Geld, kein Tarif)
 
 Nicht enthalten: Kontra/Re, Tout, Ramsch (bei „alle weiter“ wird neu gegeben).
 Sessions liegen im RAM: Ein Neustart des Containers beendet laufende Spiele.
@@ -95,6 +95,14 @@ Der Server schickt alle 25 s ein Ping, damit nginx und Cloudflare die Verbindung
 
 ## Dateien
 - `server.js`: HTTP, WebSocket (eigene, schlanke Implementierung), Sessions, Spielablauf
-- `rules.js`: Regeln, Abrechnung, Bot-Logik
+- `rules.js`: Regeln, Auswertung, Bot-Logik
 - `public/index.html`: kompletter Client (Lobby + Spieltisch)
 - `public/cards/`: Kartenbilder (bayerisches Blatt, eigene Gestaltung, siehe `CREDITS.md`), erzeugt mit `node tools/make-cards.js`
+
+## Test
+```bash
+CREATE_PASSWORD=test BOT_DELAY=20 TRICK_DELAY=30 PORT=3999 node server.js   # Terminal 1
+node test/smoke.js                                                          # Terminal 2 (Node 22+)
+```
+Prüft Passwort (falsch/richtig/Sperre nach 5 Fehlversuchen), Beitreten ohne Passwort und 5 automatisch gespielte Runden.
+Vor jedem weiteren Lauf den Server neu starten (die Fehlversuche bleiben 10 Minuten gespeichert).

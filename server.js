@@ -104,7 +104,7 @@ const cleanName = n => (String(n || '').replace(/[\u0000-\u001f<>]/g, '').trim()
 function createRoom() {
   const room = {
     code: newCode(), seats: [null, null, null, null], host: null, started: false, conns: new Set(),
-    bal: [0, 0, 0, 0], round: 0, waiting: null, ready: new Set(), readyResolve: null, lastActive: Date.now(), G: null,
+    wins: [0, 0, 0, 0], games: 0, round: 0, waiting: null, ready: new Set(), readyResolve: null, lastActive: Date.now(), G: null,
   };
   rooms.set(room.code, room);
   return room;
@@ -117,7 +117,7 @@ function view(room, seat) {
   const G = room.G, me = seat;
   const v = {
     t: 'state', code: room.code, you: me, host: room.seats[me] && room.seats[me].token === room.host,
-    started: room.started, bal: room.bal, round: room.round,
+    started: room.started, wins: room.wins, games: room.games, round: room.round,
     seats: room.seats.map(s => s ? { name: s.name, bot: s.bot, online: s.bot || s.conns.size > 0 } : null),
   };
   if (!G) return v;
@@ -182,7 +182,6 @@ async function playRound(room) {
   const deck = R.shuffle(R.makeDeck());
   Object.assign(G, { game: null, trick: [], won: [[], [], [], []], tricks: [0, 0, 0, 0], played: [], lastTrick: null, bubbles: {}, best: null, result: null, phase: 'bid' });
   for (let p = 0; p < 4; p++) G.hands[p] = deck.slice(p * 8, p * 8 + 8);
-  G.initial = G.hands.map(h => h.slice());
   logMsg(room, `— Spiel ${room.round}: ${seatName(room, G.dealer)} gibt —`);
   for (let i = 1; i <= 4; i++) {
     const p = (G.dealer + i) % 4; G.turn = p; G.status = `${seatName(room, p)} überlegt …`; broadcast(room);
@@ -224,9 +223,12 @@ async function playRound(room) {
     logMsg(room, `Stich ${t + 1}: ${seatName(room, w)} (${tp})`);
   }
   const res = R.score(G);
-  for (let i = 0; i < 4; i++) room.bal[i] += res.delta[i];
+  for (const p of res.winners) room.wins[p]++;
+  room.games++;
   G.result = res; G.phase = 'end'; G.status = '';
-  logMsg(room, `${res.team.map(x => seatName(room, x)).join(' & ')} ${res.won ? 'gewinnt' : 'verliert'} mit ${res.tp} Augen.`);
+  const wp = res.won ? res.tp : 120 - res.tp;
+  const extra = res.schwarz ? ' (Schwarz)' : res.schneider ? ' (Schneider)' : '';
+  logMsg(room, `${res.winners.map(x => seatName(room, x)).join(' & ')} ${res.winners.length > 1 ? 'gewinnen' : 'gewinnt'} mit ${wp} Augen${extra}.`);
 }
 
 function playCard(room, p, c) {
@@ -365,7 +367,7 @@ function handle(conn, m) {
       if (me < 0 || !room.readyResolve) return;
       room.ready.add(me); checkReady(room); return broadcast(room);
     }
-    case 'resetBal': { if (!isHost) return; room.bal = [0, 0, 0, 0]; return broadcast(room); }
+    case 'resetScore': { if (!isHost) return; room.wins = [0, 0, 0, 0]; room.games = 0; return broadcast(room); }
     case 'leave': { // Platz freigeben → Bot übernimmt, wenn Spiel läuft
       if (me >= 0) {
         const cur = room.seats[me];
