@@ -75,3 +75,4 @@ Der Server schickt alle 25 s ein Ping, damit nginx und Cloudflare die Verbindung
 - `server.js`: HTTP, WebSocket (eigene, schlanke Implementierung), Sessions, Spielablauf
 - `rules.js`: Regeln, Abrechnung, Bot-Logik
 - `public/index.html`: kompletter Client (Lobby + Spieltisch)
+- `public/cards/`: Kartenbilder (bayerisches Blatt, eigene Gestaltung, siehe `CREDITS.md`), erzeugt mit `node tools/make-cards.js`
