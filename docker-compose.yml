@@ -1,0 +1,10 @@
+services:
+  schafkopf:
+    build: .
+    container_name: schafkopf
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - BOT_DELAY=750      # Bedenkzeit der Bots in ms
+      - TRICK_DELAY=1600   # wie lange ein voller Stich liegen bleibt (ms)

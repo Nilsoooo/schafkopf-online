@@ -1,0 +1,18 @@
+[Unit]
+Description=Schafkopf Online
+After=network.target
+
+[Service]
+Type=simple
+User=schafkopf
+WorkingDirectory=/opt/schafkopf
+Environment=PORT=3000
+ExecStart=/usr/bin/node /opt/schafkopf/server.js
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
