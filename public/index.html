@@ -51,11 +51,7 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px;gap:14px;padding:14px;m
 .center-info{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:rgba(255,255,255,.6);font-size:13px;max-width:60%}
 .status{text-align:center;min-height:24px;font-weight:600}
 .card{width:var(--cw);height:var(--ch);background:var(--paper);border-radius:8px;position:relative;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.35);border:1px solid #d9cfb4;user-select:none;flex:none}
-.card .c{position:absolute;font-weight:800;font-size:calc(var(--cw)*.24);line-height:1;font-family:Georgia,serif}
-.card .tl{left:5px;top:5px}.card .br{right:5px;bottom:5px;transform:rotate(180deg)}
-.card .pip{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:58%}.card .pip svg{width:100%;display:block}
-.card .nm{position:absolute;left:0;right:0;bottom:16%;text-align:center;font-size:calc(var(--cw)*.14);font-weight:700;opacity:.8}
-.card.s-E .c,.card.s-E .nm{color:var(--E)}.card.s-G .c,.card.s-G .nm{color:var(--G)}.card.s-H .c,.card.s-H .nm{color:var(--H)}.card.s-S .c,.card.s-S .nm{color:var(--S)}
+.card svg.face{position:absolute;inset:0;width:100%;height:100%;display:block}
 .card.trumpf::after{content:"";position:absolute;inset:2px;border-radius:6px;border:2px solid rgba(226,184,74,.65);pointer-events:none}
 .back{width:var(--cw);height:var(--ch);border-radius:8px;border:2px solid #f3e7c8;flex:none;box-shadow:0 2px 5px rgba(0,0,0,.35);background:repeating-linear-gradient(45deg,#2b4e8c 0 6px,#1e3a6b 6px 12px)}
 .mini{--cw:34px}
@@ -100,12 +96,68 @@ const SUIT_NAME={E:'Eichel',G:'Gras',H:'Herz',S:'Schellen'};
 const SUIT_ORD={E:4,G:3,H:2,S:1};
 const RANK_NAME={A:'Sau','10':'Zehn',K:'König',O:'Ober',U:'Unter','9':'Neun','8':'Acht','7':'Sieben'};
 const LEVEL={sau:1,wenz:2,solo:3};
-const SVG={
- E:'<svg viewBox="0 0 24 26"><rect x="11" y="0.5" width="2" height="3.5" rx="1" fill="#4a2a10"/><path d="M6 11h12c0 6.5-3 12-6 13.5C9 23 6 17.5 6 11z" fill="#b07a3c" stroke="#6b3f1d" stroke-width="1"/><path d="M3.5 11.5C3.5 7 7.3 3.5 12 3.5s8.5 3.5 8.5 8z" fill="#6b3f1d"/><path d="M6 8.5h12M5 10.5h14" stroke="#8a5a2c" stroke-width=".8"/></svg>',
- G:'<svg viewBox="0 0 24 26"><path d="M12 1C6 5.5 3.5 11 4.6 16.5 5.6 21 8.6 22.6 12 22.6s6.4-1.6 7.4-6.1C20.5 11 18 5.5 12 1z" fill="#3c9a3c" stroke="#245c24" stroke-width="1"/><path d="M12 4v21M12 10l-4-3M12 10l4-3M12 15l-5-3.5M12 15l5-3.5M12 19.5l-4.5-3M12 19.5l4.5-3" stroke="#245c24" stroke-width="1" fill="none" stroke-linecap="round"/></svg>',
- H:'<svg viewBox="0 0 24 24"><path d="M12 21.5s-8-4.9-10.3-9.9C0 8 2.2 3.6 6.2 3.6c2.4 0 3.9 1.4 5.8 3.8 1.9-2.4 3.4-3.8 5.8-3.8 4 0 6.2 4.4 4.5 8C20 16.6 12 21.5 12 21.5z" fill="#d32f2f" stroke="#8e1b1b" stroke-width="1"/></svg>',
- S:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12.5" r="9.5" fill="#f0b429" stroke="#9a6409" stroke-width="1.2"/><path d="M3.3 10.5h17.4" stroke="#9a6409" stroke-width="1.6"/><path d="M8 16.2c1.2 1.4 6.8 1.4 8 0" stroke="#5c3a05" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.4" fill="#5c3a05"/><circle cx="9" cy="6.5" r="1.6" fill="#ffe08a"/></svg>'
+/* Farbzeichen (bayerisches Blatt): [viewBox-Breite, -Höhe, Inhalt] */
+const PIP={
+ E:[24,26,'<path d="M12 4C10 1.5 7 1 4.5 2.5 6 4 8.5 4.8 12 4z" fill="#3d8b3d" stroke="#245c24" stroke-width=".6"/><rect x="11" y="1" width="2" height="3.5" rx="1" fill="#4a2a10"/><path d="M6 11h12c0 6.5-3 12-6 13.5C9 23 6 17.5 6 11z" fill="#d9a441" stroke="#6b3f1d" stroke-width="1"/><path d="M3.5 11.5C3.5 7 7.3 3.5 12 3.5s8.5 3.5 8.5 8z" fill="#6b3f1d" stroke="#3e230c" stroke-width=".6"/><path d="M6 8.5h12M5 10.5h14M8.5 5.5l1 5M15.5 5.5l-1 5M12 4v6.5" stroke="#8a5a2c" stroke-width=".7"/><path d="M9 14c0 3 1 6 2.5 8" stroke="#fff3c4" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".7"/>'],
+ G:[24,26,'<path d="M12 1C6 5.5 3.5 11 4.6 16.5 5.6 21 8.6 22.6 12 22.6s6.4-1.6 7.4-6.1C20.5 11 18 5.5 12 1z" fill="#3c9a3c" stroke="#1f4f1f" stroke-width="1"/><path d="M12 4v21.5M12 10l-4-3M12 10l4-3M12 15l-5-3.5M12 15l5-3.5M12 19.5l-4.5-3M12 19.5l4.5-3" stroke="#1f4f1f" stroke-width="1" fill="none" stroke-linecap="round"/>'],
+ H:[24,24,'<path d="M12 21.5s-8-4.9-10.3-9.9C0 8 2.2 3.6 6.2 3.6c2.4 0 3.9 1.4 5.8 3.8 1.9-2.4 3.4-3.8 5.8-3.8 4 0 6.2 4.4 4.5 8C20 16.6 12 21.5 12 21.5z" fill="#e0302a" stroke="#8e1b1b" stroke-width="1"/><path d="M5 8.5c.5-1.6 1.6-2.4 3-2.4" stroke="#ffb3a8" stroke-width="1.3" fill="none" stroke-linecap="round"/>'],
+ S:[24,24,'<circle cx="12" cy="2.6" r="1.3" fill="none" stroke="#7a4f06" stroke-width=".9"/><circle cx="12" cy="12.5" r="9.5" fill="#f2c230"/><path d="M2.78 10.2A9.5 9.5 0 0 1 21.22 10.2Z" fill="#e0302a"/><path d="M21.5 13.2A9.5 9.5 0 0 1 2.5 13.2Z" fill="#3d8b3d"/><path d="M2.8 10.2H21.2M2.6 13.2H21.4" stroke="#7a4f06" stroke-width=".8"/><path d="M8.5 17.6Q12 19.6 15.5 17.6" stroke="#1e1e1e" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.1" fill="#1e1e1e"/><circle cx="12" cy="12.5" r="9.5" fill="none" stroke="#7a4f06" stroke-width="1"/>']
 };
+/* Farbzeichen mit Mittelpunkt (cx,cy) und Breite w; rot=true stellt es auf den Kopf */
+function pip(s,cx,cy,w,rot){const [vw,vh,inner]=PIP[s];const h=w*vh/vw;
+  const svg=`<svg x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" viewBox="0 0 ${vw} ${vh}">${inner}</svg>`;
+  return rot?`<g transform="rotate(180 ${cx} ${cy})">${svg}</g>`:svg;}
+/* Zahlkarten-Anordnung (Kartenmaß 60×90) */
+const LAYOUT={
+ '7':[[19,18],[41,18],[30,31],[19,45],[41,45],[19,72],[41,72]],
+ '8':[[19,16],[41,16],[19,35],[41,35],[19,55],[41,55],[19,74],[41,74]],
+ '9':[[17,20],[30,20],[43,20],[17,45],[30,45],[43,45],[17,70],[30,70],[43,70]],
+ '10':[[19,15],[41,15],[30,25],[19,35],[41,35],[19,55],[41,55],[30,65],[19,75],[41,75]]
+};
+const VEST={E:'#b8452a',G:'#2f7d32',H:'#c62828',S:'#d89a1a'};
+const SLEEVE={E:'#3d8b3d',G:'#c62828',H:'#3d8b3d',S:'#2f6fb0'};
+const OL='stroke="#3a2a1a" stroke-width=".5"';
+/* obere Hälfte einer Bildkarte (König/Ober/Unter); die untere ist dieselbe, gedreht */
+function figHalf(r,s){const v=VEST[s],sl=SLEEVE[s],skin='#f3cfa7',gold='#f2c230';
+  const hair=r==='K'?'#e6e0d2':r==='O'?'#c08a34':'#7a4a1c';let o='';
+  // Haare hinten
+  o+=r==='K'?`<path d="M24 15Q23 23 22 26L38 26Q37 23 36 15Z" fill="${hair}" ${OL}/>`
+            :`<path d="M23.5 14Q22 27 18.5 31L41.5 31Q38 27 36.5 14Z" fill="${hair}" ${OL}/>`;
+  // linker Arm (hängend)
+  o+=`<path d="M19 31Q14 35 13 45L19.5 45Z" fill="${sl}" ${OL}/>`;
+  // Oberkörper mit Wams, Borte und Knöpfen
+  o+=`<path d="M17.5 45L18.5 31Q20 27 26 26L34 26Q40 27 41.5 31L42.5 45Z" fill="${v}" ${OL}/>`;
+  o+=`<path d="M27.5 26H32.5V45H27.5Z" fill="${gold}" ${OL}/>`;
+  o+=[30,34,38,42].map(y=>`<circle cx="30" cy="${y}" r=".9" fill="#3a2a1a"/>`).join('');
+  o+=`<path d="M22 37Q30 39.5 38 37" stroke="${gold}" stroke-width="1.4" fill="none"/>`;
+  // rechter Arm + Farbzeichen
+  if(r==='O')o+=`<path d="M41.5 31L45 17" stroke="#3a2a1a" stroke-width="5.6" stroke-linecap="round"/><path d="M41.5 31L45 17" stroke="${sl}" stroke-width="4.6" stroke-linecap="round"/><circle cx="45.3" cy="15.6" r="2.2" fill="${skin}" ${OL}/>`+pip(s,46,8.5,11);
+  else if(r==='U')o+=`<path d="M41.5 31L45 39" stroke="#3a2a1a" stroke-width="5.6" stroke-linecap="round"/><path d="M41.5 31L45 39" stroke="${sl}" stroke-width="4.6" stroke-linecap="round"/><circle cx="45.4" cy="40.2" r="2.2" fill="${skin}" ${OL}/>`+pip(s,48,31,11);
+  else o+=`<path d="M46.5 44L48 17" stroke="#8a6a10" stroke-width="1.4"/><circle cx="48.1" cy="16" r="1.6" fill="${gold}" ${OL}/><path d="M41.5 31L46 40" stroke="#3a2a1a" stroke-width="5.6" stroke-linecap="round"/><path d="M41.5 31L46 40" stroke="${sl}" stroke-width="4.6" stroke-linecap="round"/><circle cx="46.6" cy="41" r="2.2" fill="${skin}" ${OL}/>`+pip(s,47,8,9);
+  // Halskrause, Kopf, Gesicht
+  o+=`<ellipse cx="30" cy="26" rx="7" ry="2.2" fill="#fff" ${OL}/>`;
+  o+=`<ellipse cx="30" cy="18" rx="5.2" ry="6.3" fill="${skin}" ${OL}/>`;
+  o+=`<circle cx="28" cy="17.3" r=".65" fill="#2a1a0a"/><circle cx="32" cy="17.3" r=".65" fill="#2a1a0a"/><path d="M27 15.8h2M31 15.8h2" stroke="${r==='K'?'#999':'#5a3a1a'}" stroke-width=".5"/><path d="M30 18v2.2h.8" stroke="#b07a5a" stroke-width=".5" fill="none"/>`;
+  if(r==='K')o+=`<path d="M24.8 19.5Q25 27.5 30 28Q35 27.5 35.2 19.5Q33 23.5 30 23.5Q27 23.5 24.8 19.5Z" fill="${hair}" ${OL}/><path d="M27.5 22.3Q30 21.4 32.5 22.3" stroke="#bdb5a3" stroke-width=".7" fill="none"/>`;
+  else o+=`<path d="M28.6 22.3Q30 23 31.4 22.3" stroke="#a0442e" stroke-width=".6" fill="none"/><path d="M24.8 16Q25.5 11.5 30 11.5Q34.5 11.5 35.2 16Q33 13.8 30 13.6Q27 13.8 24.8 16Z" fill="${hair}" ${OL}/>`;
+  // Kopfbedeckung
+  if(r==='K')o+=`<path d="M24 14L23.5 6.5L26.8 9.8L30 5L33.2 9.8L36.5 6.5L36 14Z" fill="${gold}" ${OL}/><path d="M24 12.6H36" stroke="#8a6a10" stroke-width=".6"/><circle cx="30" cy="10.6" r=".9" fill="#c62828"/><circle cx="26.4" cy="11.4" r=".6" fill="#2f6fb0"/><circle cx="33.6" cy="11.4" r=".6" fill="#2f6fb0"/>`;
+  else if(r==='O')o+=`<path d="M24.5 12.3Q24.5 6 30 6Q35.5 6 35.5 12.3Z" fill="${v}" ${OL}/><ellipse cx="30" cy="12.3" rx="8.5" ry="2.1" fill="#2b2b2b"/><path d="M34.5 8Q39 3 44.5 4.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M34.5 8Q39 3 44.5 4.5" stroke="#3a2a1a" stroke-width=".3" fill="none"/>`;
+  else o+=`<path d="M22 12.8Q23 7 30.5 7.4Q37.5 8 38 12.4Q30 10.6 22 12.8Z" fill="${sl}" ${OL}/><path d="M23 12.4Q30 10.9 37.5 12.1" stroke="${gold}" stroke-width=".9" fill="none"/>`;
+  return o;}
+/* Eckzeichen: Rang + kleines Farbzeichen oben links (unten rechts gedreht) */
+function corner(c){const t=c.r;return `<text x="6.5" y="${t==='10'?11:11.5}" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${t==='10'?8:11}" fill="#2a1a0a">${t}</text>`+pip(c.s,6.5,17,6);}
+function cardSVG(c){let o='';const rot=x=>`<g transform="rotate(180 30 45)">${x}</g>`;
+  if(c.r==='K'||c.r==='O'||c.r==='U'){const h=figHalf(c.r,c.s);
+    o+=`<rect x="3" y="3" width="54" height="84" rx="2" fill="#fbf7ec" stroke="#555" stroke-width=".6"/>`;
+    o+=h+rot(h)+`<path d="M3 45H57" stroke="#555" stroke-width=".6"/>`;
+  }else if(c.r==='A'){
+    o+=`<path d="M12 76Q21 70 30 74Q39 78 48 72L49 79Q39 85 30 81Q21 77 11 83Z" fill="${VEST[c.s]}" stroke="#3a2a1a" stroke-width=".5"/><path d="M15 77Q22 74 30 77.5Q38 81 45 77" stroke="#f2c230" stroke-width="1" fill="none"/>`;
+    o+=`<path d="M30 63Q22 66 17 72M30 63Q38 66 43 70" stroke="#3d8b3d" stroke-width="1.4" fill="none"/><path d="M17 72q-3-4 0-7q3 3 0 7zM43 70q4-3 6 1q-4 2-6-1z" fill="#3d8b3d"/>`;
+    o+=pip(c.s,30,38,30);
+  }else o+=(LAYOUT[c.r]||[]).map(([x,y])=>pip(c.s,x,y,c.r==='9'||c.r==='10'?10:11,y>45)).join('');
+  const k=corner(c);o+=k+rot(k);
+  return `<svg class="face" viewBox="0 0 60 90">${o}</svg>`;}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 const euro=ct=>(ct>0?'+':ct<0?'−':'')+(Math.abs(ct)/100).toFixed(2).replace('.',',')+' €';
@@ -137,7 +189,7 @@ function myName(){return store.get('sk.name')||'';}
 function isTrump(c,g){if(!g)return c.r==='O'||c.r==='U'||c.s==='H';if(g.type==='wenz')return c.r==='U';
   const ts=g.type==='sau'?'H':g.suit;return c.r==='O'||c.r==='U'||c.s===ts;}
 function cardHTML(c,cls=''){const tr=st&&st.game&&isTrump(c,st.game)?' trumpf':'';
-  return `<div class="card s-${c.s}${tr} ${cls}" data-id="${c.id}" title="${SUIT_NAME[c.s]}-${RANK_NAME[c.r]}"><span class="c tl">${c.r}</span><div class="pip">${SVG[c.s]}</div><div class="nm">${RANK_NAME[c.r]}</div><span class="c br">${c.r}</span></div>`;}
+  return `<div class="card s-${c.s}${tr} ${cls}" data-id="${c.id}" title="${SUIT_NAME[c.s]}-${RANK_NAME[c.r]}">${cardSVG(c)}</div>`;}
 
 /* ---------- Rendern ---------- */
 const app=document.getElementById('app');
