@@ -20,7 +20,7 @@ LXC z. B. mit dem community-scripts Debian-Script anlegen, dann im LXC:
 
 ```bash
 apt install -y git
-git clone https://github.com/<USER>/schafkopf-online.git /root/schafkopf-online
+git clone https://github.com/Nilsoooo/schafkopf-online.git /root/schafkopf-online
 bash /root/schafkopf-online/setup.sh
 ```
 
