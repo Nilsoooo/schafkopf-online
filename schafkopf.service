@@ -7,6 +7,8 @@ Type=simple
 User=schafkopf
 WorkingDirectory=/opt/schafkopf
 Environment=PORT=3000
+# CREATE_PASSWORD=… (Passwort zum Erstellen von Sessions), angelegt von setup.sh, Rechte 600
+EnvironmentFile=-/etc/schafkopf.env
 ExecStart=/usr/bin/node /opt/schafkopf/server.js
 Restart=on-failure
 NoNewPrivileges=true

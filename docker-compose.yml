@@ -6,5 +6,6 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - CREATE_PASSWORD=${CREATE_PASSWORD}   # aus .env neben dieser Datei (nicht im Repo)
       - BOT_DELAY=750      # Bedenkzeit der Bots in ms
       - TRICK_DELAY=1600   # wie lange ein voller Stich liegen bleibt (ms)

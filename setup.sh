@@ -15,6 +15,26 @@ NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
 
 id schafkopf >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin schafkopf
 
+# Passwort zum Erstellen von Sessions (nur beim ersten Mal abfragen)
+ENVFILE=/etc/schafkopf.env
+if [ ! -f "$ENVFILE" ]; then
+  [ -r /dev/tty ] || { echo "Kein Terminal für die Passwort-Abfrage. $ENVFILE bitte von Hand anlegen: CREATE_PASSWORD='…'"; exit 1; }
+  echo "» Passwort festlegen, mit dem man Sessions erstellen darf (Beitreten geht ohne):"
+  while true; do
+    read -rsp "  Passwort: " PW1 </dev/tty; echo
+    read -rsp "  Wiederholen: " PW2 </dev/tty; echo
+    if [ -z "$PW1" ]; then echo "  Leeres Passwort geht nicht."; continue; fi
+    if [ "$PW1" != "$PW2" ]; then echo "  Stimmt nicht überein, nochmal."; continue; fi
+    case "$PW1" in *\'*|*\\*) echo "  Bitte ohne ' und \\."; continue ;; esac
+    break
+  done
+  ( umask 077; printf "CREATE_PASSWORD='%s'\n" "$PW1" > "$ENVFILE" )
+  chown root:root "$ENVFILE"; chmod 600 "$ENVFILE"
+  unset PW1 PW2
+  echo "✓ $ENVFILE angelegt."
+fi
+echo "  Passwort ändern: $ENVFILE bearbeiten (CREATE_PASSWORD='…'), dann: systemctl restart schafkopf"
+
 echo "» Kopiere Dateien nach $DEST …"
 mkdir -p "$DEST"
 if [ "$SRC" != "$DEST" ]; then

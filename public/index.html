@@ -99,6 +99,7 @@ const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},se
 const euro=ct=>(ct>0?'+':ct<0?'−':'')+(Math.abs(ct)/100).toFixed(2).replace('.',',')+' €';
 
 let ws=null,st=null,code=null,err='',closedByUs=false,retry=0;
+let lastAction='',pwDraft=store.get('sk.createpw')||'';
 const params=new URLSearchParams(location.search);
 code=(params.get('r')||'').toUpperCase()||null;
 
@@ -153,13 +154,22 @@ function renderStart(){
     </div>
     <div class="box"><h2>Neue Session</h2>
       <p class="small" style="margin-top:0">Du bekommst einen Code bzw. Link für deine Freunde. Freie Plätze kannst du mit Bots auffüllen.</p>
-      <button class="primary" id="createBtn">Session erstellen</button></div>
+      <div class="row" style="margin-bottom:8px"><input id="pwIn" type="password" autocomplete="current-password" placeholder="Passwort zum Erstellen" value="${esc(pwDraft)}"></div>
+      <div class="row" style="margin-bottom:10px"><label class="small" style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="pwRemember" ${store.get('sk.createpw')!==null?'checked':''}> Passwort merken</label></div>
+      <button class="primary" id="createBtn">Session erstellen</button>
+      <div class="err">${lastAction==='create'?esc(err):''}</div></div>
     <div class="box"><h2>Beitreten</h2>
       <div class="row"><input id="codeIn" maxlength="4" placeholder="Code, z. B. K7QM" style="text-transform:uppercase;letter-spacing:3px" value="${esc(code||'')}"><button id="joinBtn">Beitreten</button></div>
-      <div class="err">${esc(err)}</div></div></div>`;
+      <div class="err">${lastAction!=='create'?esc(err):''}</div></div></div>`;
   const nm=()=>{const v=document.getElementById('nameIn').value.trim();if(!v){err='Bitte gib einen Namen ein.';render();return null;}store.set('sk.name',v);return v;};
-  document.getElementById('createBtn').onclick=()=>{const n=nm();if(n)send({t:'create',name:n});};
-  const join=()=>{const n=nm();const c=document.getElementById('codeIn').value.trim().toUpperCase();if(!n)return;if(c.length!==4){err='Der Code hat 4 Zeichen.';return render();}
+  const pwIn=document.getElementById('pwIn');pwIn.oninput=()=>{pwDraft=pwIn.value;};
+  const create=()=>{lastAction='create';const n=nm();if(!n)return;const pw=pwIn.value;pwDraft=pw;
+    if(!pw){err='Bitte gib das Passwort ein.';return render();}
+    if(document.getElementById('pwRemember').checked)store.set('sk.createpw',pw);else store.del('sk.createpw');
+    send({t:'create',name:n,password:pw});};
+  document.getElementById('createBtn').onclick=create;
+  pwIn.onkeydown=e=>{if(e.key==='Enter')create();};
+  const join=()=>{lastAction='join';const n=nm();const c=document.getElementById('codeIn').value.trim().toUpperCase();if(!n)return;if(c.length!==4){err='Der Code hat 4 Zeichen.';return render();}
     code=c;send({t:'join',code:c,token:store.get('sk.token.'+c),name:n});};
   document.getElementById('joinBtn').onclick=join;
   document.getElementById('codeIn').onkeydown=e=>{if(e.key==='Enter')join();};

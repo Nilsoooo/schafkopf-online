@@ -12,6 +12,9 @@ const TRICK_DELAY = +process.env.TRICK_DELAY || 1600; // ms, wie lange ein volle
 const ROOM_TTL = 30 * 60 * 1000;                       // leere Sessions nach 30 min löschen
 const BOT_NAMES = ['Sepp', 'Resi', 'Hias', 'Vroni', 'Wastl', 'Zenzi'];
 const PUBLIC = path.join(__dirname, 'public');
+const CREATE_PASSWORD = process.env.CREATE_PASSWORD || '';
+const FAIL_MAX = 5, FAIL_WINDOW = 10 * 60 * 1000;      // max. 5 Fehlversuche pro IP in 10 min
+if (!CREATE_PASSWORD) console.warn('\n!!! WARNUNG: CREATE_PASSWORD ist nicht gesetzt – Sessions erstellen ist GESPERRT.\n!!! Passwort in /etc/schafkopf.env (bzw. .env bei Docker) eintragen und neu starten.\n');
 
 /* =================== HTTP =================== */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png', '.webp': 'image/webp', '.md': 'text/markdown; charset=utf-8' };
@@ -39,8 +42,15 @@ server.on('upgrade', (req, sock) => {
   sock.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n' + `Sec-WebSocket-Accept: ${accept}\r\n\r\n`);
   sock.setNoDelay(true);
   const ws = makeWS(sock);
-  onConnection(ws);
+  onConnection(ws, clientIp(req));
 });
+// hinter NPMplus: X-Real-IP (vom Proxy gesetzt), sonst erster Eintrag von X-Forwarded-For, sonst direkte Verbindung
+function clientIp(req) {
+  const real = String(req.headers['x-real-ip'] || '').trim();
+  if (real) return real;
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return fwd || req.socket.remoteAddress || '?';
+}
 
 function makeWS(sock) {
   let buf = Buffer.alloc(0), frag = [], fragOp = 0;
@@ -232,8 +242,26 @@ function playCard(room, p, c) {
 }
 
 /* =================== Nachrichten =================== */
-function onConnection(ws) {
-  const conn = { ws, room: null, seat: -1 };
+/* =================== Passwort fürs Erstellen =================== */
+const failures = new Map(); // ip -> [Zeitstempel der Fehlversuche]
+const sha = s => crypto.createHash('sha256').update(String(s), 'utf8').digest();
+function recentFails(ip) {
+  const now = Date.now(), list = (failures.get(ip) || []).filter(t => now - t < FAIL_WINDOW);
+  if (list.length) failures.set(ip, list); else failures.delete(ip);
+  return list;
+}
+// liefert null bei Erfolg, sonst die Fehlermeldung
+function checkCreatePassword(ip, pw) {
+  if (!CREATE_PASSWORD) return 'Erstellen ist deaktiviert (kein Passwort gesetzt).';
+  if (recentFails(ip).length >= FAIL_MAX) return 'Zu viele Versuche, bitte später erneut.';
+  if (typeof pw === 'string' && crypto.timingSafeEqual(sha(pw), sha(CREATE_PASSWORD))) return null;
+  failures.set(ip, [...recentFails(ip), Date.now()]);
+  console.warn(`Falsches Passwort beim Erstellen von ${ip}`);
+  return 'Falsches Passwort.';
+}
+
+function onConnection(ws, ip) {
+  const conn = { ws, ip, room: null, seat: -1 };
   ws.onmessage = raw => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (!m || typeof m.t !== 'string') return;
@@ -261,6 +289,8 @@ function humanSeat(name, token) { return { name, bot: false, token, conns: new S
 function handle(conn, m) {
   const ws = conn.ws;
   if (m.t === 'create') {
+    const bad = checkCreatePassword(conn.ip, m.password);
+    if (bad) return sendErr(ws, bad);
     const room = createRoom(); const token = newToken();
     room.seats[0] = humanSeat(cleanName(m.name), token); room.host = token;
     attach(conn, room, 0);
@@ -359,6 +389,7 @@ setInterval(() => {
     const host = room.seats.find(s => s && s.token === room.host);
     if (!host || host.conns.size === 0) { const h = room.seats.find(s => s && !s.bot && s.conns.size > 0); if (h && h.token !== room.host) { room.host = h.token; broadcast(room); } }
   }
+  for (const ip of [...failures.keys()]) recentFails(ip); // abgelaufene Fehlversuche aufräumen
 }, 15000);
 // Keepalive gegen Proxy-Timeouts
 setInterval(() => { for (const room of rooms.values()) for (const c of room.conns) c.ws.ping(); }, 25000);
