@@ -9,7 +9,7 @@ Reines Node.js (≥ 18), **keine npm-Abhängigkeiten**. Der Server rechnet alle 
 - Gastgeber: Bots hinzufügen/Spieler entfernen, Spiel starten, Spielstand zurücksetzen, „Bot übernimmt“ für Spieler, die offline gegangen sind
 - Reconnect: Seite neu laden oder WLAN weg → man landet automatisch wieder auf seinem Platz (Token im localStorage)
 - Zuschauer: wer einer laufenden Session beitritt, schaut zu und kann einen Bot-Platz übernehmen
-- Sauspiel, Wenz, Farbsolo · Rufsau-Regeln (zugeben, nicht schmieren, davonlaufen) · Schneider/Schwarz
+- Sauspiel, Wenz, König (nur die vier Könige sind Trumpf, Rang wie Wenz), Farbsolo · Rufsau-Regeln (zugeben, nicht schmieren, davonlaufen) · Schneider/Schwarz
 - Spielstand: gewonnene Spiele je Spieler und gespielte Runden (kein Geld, kein Tarif)
 
 Nicht enthalten: Kontra/Re, Tout, Ramsch (bei „alle weiter“ wird neu gegeben).

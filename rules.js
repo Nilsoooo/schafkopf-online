@@ -7,18 +7,18 @@ const SUIT_ORD = { E: 4, G: 3, H: 2, S: 1 };
 const RANKS = ['A', '10', 'K', 'O', 'U', '9', '8', '7'];
 const PTS = { A: 11, '10': 10, K: 4, O: 3, U: 2, '9': 0, '8': 0, '7': 0 };
 const PLAIN = { A: 8, '10': 7, K: 6, O: 5, U: 4, '9': 3, '8': 2, '7': 1 };
-const LEVEL = { sau: 1, wenz: 2, solo: 3 };
+const LEVEL = { sau: 1, wenz: 2, koenig: 2, solo: 3 };
 
 function makeDeck() { const d = []; let id = 0; for (const s of SUITS) for (const r of RANKS) d.push({ s, r, id: id++ }); return d; }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function trumpSuitOf(g) { return g.type === 'sau' ? 'H' : g.type === 'solo' ? g.suit : null; }
-function isTrump(c, g) { if (g.type === 'wenz') return c.r === 'U'; return c.r === 'O' || c.r === 'U' || c.s === trumpSuitOf(g); }
-function trumpRank(c) { if (c.r === 'O') return 40 + SUIT_ORD[c.s]; if (c.r === 'U') return 30 + SUIT_ORD[c.s]; return 10 + PLAIN[c.r]; }
+function isTrump(c, g) { if (g.type === 'wenz') return c.r === 'U'; if (g.type === 'koenig') return c.r === 'K'; return c.r === 'O' || c.r === 'U' || c.s === trumpSuitOf(g); }
+function trumpRank(c, g) { if (g && g.type === 'koenig' && c.r === 'K') return 30 + SUIT_ORD[c.s]; if (c.r === 'O') return 40 + SUIT_ORD[c.s]; if (c.r === 'U') return 30 + SUIT_ORD[c.s]; return 10 + PLAIN[c.r]; }
 function eff(c, g) { return isTrump(c, g) ? 'T' : c.s; }
-function power(c, g, lead) { if (isTrump(c, g)) return 100 + trumpRank(c); if (c.s === lead) return PLAIN[c.r]; return 0; }
+function power(c, g, lead) { if (isTrump(c, g)) return 100 + trumpRank(c, g); if (c.s === lead) return PLAIN[c.r]; return 0; }
 function winnerIdx(trick, g) { const lead = eff(trick[0].card, g); let bi = 0, bp = -1; trick.forEach((t, i) => { const p = power(t.card, g, lead); if (p > bp) { bp = p; bi = i; } }); return bi; }
 function pts(cards) { return cards.reduce((a, c) => a + PTS[c.r], 0); }
-function gameName(g) { if (g.type === 'sau') return `Sauspiel auf die ${SUIT_NAME[g.suit]}-Sau`; if (g.type === 'wenz') return 'Wenz'; return `${SUIT_NAME[g.suit]}-Solo`; }
+function gameName(g) { if (g.type === 'sau') return `Sauspiel auf die ${SUIT_NAME[g.suit]}-Sau`; if (g.type === 'wenz') return 'Wenz'; if (g.type === 'koenig') return 'König'; return `${SUIT_NAME[g.suit]}-Solo`; }
 
 function canCallSau(hand, suit) {
   const g = { type: 'sau' };
@@ -40,7 +40,7 @@ function validBid(G, p, bid) {
 function sortHand(hand, g) {
   g = g || { type: 'sau' };
   const order = { E: 4, G: 3, S: 2, H: 1 };
-  const key = c => isTrump(c, g) ? 1000 + trumpRank(c) : order[c.s] * 100 + PLAIN[c.r];
+  const key = c => isTrump(c, g) ? 1000 + trumpRank(c, g) : order[c.s] * 100 + PLAIN[c.r];
   return hand.sort((a, b) => key(b) - key(a));
 }
 
@@ -73,15 +73,16 @@ function evalNormal(hand, suit) {
   const voids = SUITS.filter(s => s !== suit && !hand.some(c => c.s === s && !isTrump(c, g))).length;
   return { t, str, voids };
 }
-function evalWenz(hand) {
+// Wenz (rank U) bzw. König (rank K): nur diese vier Karten sind Trumpf
+function evalWenz(hand, rank = 'U') {
   const UV = { E: 4, G: 3.5, H: 3, S: 2.5 }; let u = 0, str = 0;
-  for (const c of hand) if (c.r === 'U') { u++; str += UV[c.s]; }
+  for (const c of hand) if (c.r === rank) { u++; str += UV[c.s]; }
   for (const s of SUITS) {
-    const cs = hand.filter(c => c.s === s && c.r !== 'U');
+    const cs = hand.filter(c => c.s === s && c.r !== rank);
     const a = cs.some(c => c.r === 'A'), z = cs.some(c => c.r === '10');
     if (a) { str += 2; if (z) str += 1.5; if (cs.length >= 3) str += .5 * (cs.length - 2); } else if (z && cs.length === 1) str -= 1;
   }
-  return { u, str, hasUE: hand.some(c => c.r === 'U' && c.s === 'E') };
+  return { u, str, hasUE: hand.some(c => c.r === rank && c.s === 'E') };
 }
 function botBid(G, p) {
   const h = G.hands[p], lvl = G.best ? LEVEL[G.best.type] : 0;
@@ -90,7 +91,11 @@ function botBid(G, p) {
     for (const s of SUITS) { const e = evalNormal(h, s); const v = e.str + e.voids * .7; if ((e.t >= 6 && v >= 15.5) || (e.t >= 7 && v >= 13.5)) { if (v > bv) { bv = v; bs = s; } } }
     if (bs) return { type: 'solo', suit: bs };
   }
-  if (lvl < 2) { const w = evalWenz(h); if (w.u >= 2 && w.str >= 13 && (w.u >= 3 || w.hasUE)) return { type: 'wenz', suit: null }; }
+  if (lvl < 2) {
+    const opts = [['wenz', evalWenz(h, 'U')], ['koenig', evalWenz(h, 'K')]]
+      .filter(([, w]) => w.u >= 2 && w.str >= 13 && (w.u >= 3 || w.hasUE)).sort((a, b) => b[1].str - a[1].str);
+    if (opts.length) return { type: opts[0][0], suit: null };
+  }
   if (lvl < 1) {
     const e = evalNormal(h, 'H');
     if ((e.t >= 4 && e.str >= 9.5) || (e.t >= 5 && e.str >= 8.5)) {
@@ -111,9 +116,9 @@ function friend(G, p, q) {
   if (p === g.partner) return team.includes(q);
   return false;
 }
-function keepVal(G, c) { return isTrump(c, G.game) ? 10 + trumpRank(c) / 2 : PLAIN[c.r]; }
+function keepVal(G, c) { return isTrump(c, G.game) ? 10 + trumpRank(c, G.game) / 2 : PLAIN[c.r]; }
 function lowCard(G, cards) { return cards.slice().sort((a, b) => (PTS[a.r] * 2 + keepVal(G, a)) - (PTS[b.r] * 2 + keepVal(G, b)))[0]; }
-function smearCard(G, cards) { const g = G.game; const sc = c => PTS[c.r] * 2 - (isTrump(c, g) ? trumpRank(c) * .6 : 0); return cards.slice().sort((a, b) => sc(b) - sc(a))[0]; }
+function smearCard(G, cards) { const g = G.game; const sc = c => PTS[c.r] * 2 - (isTrump(c, g) ? trumpRank(c, g) * .6 : 0); return cards.slice().sort((a, b) => sc(b) - sc(a))[0]; }
 function unseen(G, p) { const seen = new Set([...G.played, ...G.hands[p], ...G.trick.map(t => t.card)].map(c => c.id)); return makeDeck().filter(c => !seen.has(c.id)); }
 function isTopCard(G, c, p, lead) { const g = G.game; const myP = power(c, g, lead); return !unseen(G, p).some(x => power(x, g, lead) > myP && (isTrump(x, g) || x.s === lead)); }
 
@@ -126,13 +131,13 @@ function botPlay(G, p) {
     if (declSide) {
       const enemyTrumps = unseen(G, p).filter(c => isTrump(c, g)).length;
       if (trumps.length && enemyTrumps > 0 && (g.type !== 'sau' || trumps.length >= 2 || p === g.decl)) {
-        const top = trumps.slice().sort((a, b) => trumpRank(b) - trumpRank(a));
+        const top = trumps.slice().sort((a, b) => trumpRank(b, g) - trumpRank(a, g));
         return isTopCard(G, top[0], p, 'T') || g.type !== 'sau' ? top[0] : top[top.length - 1];
       }
       const aces = plain.filter(c => c.r === 'A' && !(g.type === 'sau' && c.s === g.suit && p === g.decl));
       if (aces.length) return aces[0];
       if (plain.length) return lowCard(G, plain);
-      return trumps.sort((a, b) => trumpRank(b) - trumpRank(a))[0];
+      return trumps.sort((a, b) => trumpRank(b, g) - trumpRank(a, g))[0];
     }
     if (g.type === 'sau' && !g.revealed) { const call = plain.filter(c => c.s === g.suit); if (call.length) return lowCard(G, call); }
     const aces = plain.filter(c => c.r === 'A' && !G.played.some(x => x.s === c.s && !isTrump(x, g)));

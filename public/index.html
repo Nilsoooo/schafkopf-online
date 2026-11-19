@@ -91,7 +91,7 @@ aside{display:flex;flex-direction:column;gap:12px}
 const SUIT_NAME={E:'Eichel',G:'Gras',H:'Herz',S:'Schellen'};
 const SUIT_ORD={E:4,G:3,H:2,S:1};
 const RANK_NAME={A:'Sau','10':'Zehn',K:'König',O:'Ober',U:'Unter','9':'Neun','8':'Acht','7':'Sieben'};
-const LEVEL={sau:1,wenz:2,solo:3};
+const LEVEL={sau:1,wenz:2,koenig:2,solo:3};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 
@@ -120,7 +120,7 @@ function send(m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m));}
 function myName(){return store.get('sk.name')||'';}
 
 /* ---------- Karten ---------- */
-function isTrump(c,g){if(!g)return c.r==='O'||c.r==='U'||c.s==='H';if(g.type==='wenz')return c.r==='U';
+function isTrump(c,g){if(!g)return c.r==='O'||c.r==='U'||c.s==='H';if(g.type==='wenz')return c.r==='U';if(g.type==='koenig')return c.r==='K';
   const ts=g.type==='sau'?'H':g.suit;return c.r==='O'||c.r==='U'||c.s===ts;}
 const SUITS=['E','G','H','S'],RANKS=['A','10','K','O','U','9','8','7'];
 const cardSrc=c=>`/cards/${c.s}${c.r}.svg`,BACK_SRC='/cards/back.svg';
@@ -258,10 +258,10 @@ function bidPanel(){
   const b=(type,suit,label,ok)=>`<button data-bid="${type}" data-suit="${suit||''}" ${ok?'':'disabled'}>${label}</button>`;
   return `<div class="bidpanel"><div class="small">${st.best?'Bisher: '+esc(st.seats[st.best.p]?.name)+' – '+esc(nameOf(st.best)):'Noch hat keiner angesagt.'}</div>
     <div class="bidrow"><span class="lbl">Sauspiel</span>${['E','G','S'].map(s=>b('sau',s,SUIT_NAME[s]+'-Sau',lvl<1&&cal.includes(s))).join('')}</div>
-    <div class="bidrow"><span class="lbl">Wenz</span>${b('wenz',null,'Wenz',lvl<2)}<span class="lbl">Solo</span>${['E','G','H','S'].map(s=>b('solo',s,SUIT_NAME[s],lvl<3)).join('')}</div>
+    <div class="bidrow"><span class="lbl">Wenz</span>${b('wenz',null,'Wenz',lvl<2)}${b('koenig',null,'König',lvl<2)}<span class="lbl">Solo</span>${['E','G','H','S'].map(s=>b('solo',s,SUIT_NAME[s],lvl<3)).join('')}</div>
     <div class="bidrow"><button class="primary" data-bid="pass">Weiter</button></div></div>`;
 }
-function nameOf(g){return g.type==='sau'?`Sauspiel auf die ${SUIT_NAME[g.suit]}-Sau`:g.type==='wenz'?'Wenz':`${SUIT_NAME[g.suit]}-Solo`;}
+function nameOf(g){return g.type==='sau'?`Sauspiel auf die ${SUIT_NAME[g.suit]}-Sau`:g.type==='wenz'?'Wenz':g.type==='koenig'?'König':`${SUIT_NAME[g.suit]}-Solo`;}
 
 function renderResult(){
   const m=document.getElementById('modal');
